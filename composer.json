@@ -1,0 +1,17 @@
+{
+    "name": "iguoji/minimal-database",
+    "description": "php pdo database support",
+    "keywords": ["database", "pdo", "connection pool"],
+    "homepage": "https://github.com/iguoji/minimal-database",
+    "require": {
+        "php": ">=8.0.0",
+        "iguoji/minimal-support": "dev-master",
+        "iguoji/minimal-pool": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "Minimal\\Database\\": "src/"
+        }
+    },
+    "minimum-stability": "dev"
+}
