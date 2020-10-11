@@ -1,3 +1,80 @@
+## 概念
+
+### 管理类
+
+对用户来说，只有管理类，通过管理类即可方便的操作数据库
+
+连接：connection（获取、选择、自动回收连接）
+
+调度：__call(用查询类解析用户操作，再通过连接来实现数据库操作，最后返回结果)
+
+### 查询类
+
+如 MysqlQuery / MssqlQuery / OracleQuery
+
+事务：beginTransaction、commit、rollback、inTransaction
+
+查询：query(查询多行，返回数组)、first(查询第一行，返回对象)、value(查询第一行的某一个值)
+
+修改：execute、exec
+
+其他：getLastSql、getLastInsertID，getErrorInfo
+
+### 连接池
+
+获取：get(获取连接)
+
+回收：put(释放连接)
+
+### 代理类
+
+如 PDOProxy
+
+连接：connect(连接数据库，支持重连一次)
+
+释放：release(释放连接时调用)
+
+通信：message(操作数据库，支持断线重连)
+
+## 示例
+
+```php
+/**
+ * 第一步：实例化数据库管理类
+ */
+$db = new Database(array $configs, string MysqlQuery::class, string PDOProxy::class);
+
+/**
+ * 第二步：在管理类中，实例化集群连接池，实例化查询类
+ */
+$cluster = new Cluster(array $configs, string PDOProxy::class);
+$query = new MysqlQuery();
+
+/**
+ * 第三步：在控制器中，测试效果
+ */
+$result = $db->query('SELECT * FROM `table` WHERE `id` = ?', [1]);
+
+/**
+ * 第四步：管理类分配调度
+ */
+public function __call(string $method, array $arguments)
+{
+    // 当方法为query且不在事务中时，使用从读
+
+
+    // 如果查询类中存在这个方法
+    if (method_exists($this->query, $method)) {
+        // 使用查询类解析
+        $context = $this->query->$method(...$arguments);
+    }
+    // 得到连接
+    $conn = $context['master'] ? $this->cluster->master() : $this->cluster->slave();
+    // 执行
+    $conn->$context['method'](...$context['arguments']);
+}
+```
+
 ## 一
 
 ### 思路
