@@ -5,6 +5,8 @@ namespace Minimal\Database;
 
 use PDO;
 use PDOStatement;
+use PDOException;
+use RuntimeException;
 use Throwable;
 use Minimal\Support\Arr;
 use Minimal\Support\Context;
@@ -30,6 +32,13 @@ class Proxy
         $this->config = Arr::array_merge_recursive_distinct($this->getDefaultConfigStruct(), $config);
         // 创建连接
         $this->connect();
+        // 当前标志
+        $this->token = Context::incr('proxy');
+    }
+
+    public function getToken() : string
+    {
+        return 'Proxy# ' . $this->token;
     }
 
     /**
@@ -99,9 +108,9 @@ class Proxy
     {
         $level = Context::incr('database:transaction:level');
         if ($level === 1) {
-            $bool = $this->__call('beginTransaction', []);
+            $bool = $this->handle->beginTransaction();
         } else {
-            $this->__call('exec', ['SAVEPOINT TRANS' . $level]);
+            $bool = $this->handle->exec('SAVEPOINT TRANS' . $level);
         }
         return isset($bool) ? $bool : true;
     }
@@ -121,9 +130,9 @@ class Proxy
     {
         $level = Context::get('database:transaction:level');
         if ($level === 1) {
-            $bool = $this->__call('rollBack', []);
+            $bool = $this->rollBack();
         } else if ($level > 1) {
-            $this->__call('exec', ['ROLLBACK TO SAVEPOINT TRANS' . $level]);
+            $this->exec('ROLLBACK TO SAVEPOINT TRANS' . $level);
         }
         $level = max(0, $level - 1);
         Context::set('database:transaction:level', $level);
@@ -136,9 +145,8 @@ class Proxy
     public function commit() : bool
     {
         $level = Context::decr('database:transaction:level');
-        echo 'commit: ' . $level, PHP_EOL;
         if ($level === 0) {
-            return $this->__call('commit', []);
+            return $this->commit();
         } else {
             return true;
         }
@@ -149,43 +157,17 @@ class Proxy
      */
     public function query(string $sql, array $data = []) : array
     {
-        return $this->prepare($sql, $data, PDO::FETCH_ASSOC)->fetchAll();
+        $statement = $this->handle->query($sql);
+        $statement->setFetchMode(PDO::FETCH_ASSOC);
+        return $statement->fetchAll();
     }
 
     /**
-     * 查询一行
+     * 执行语句
      */
-    public function first(string $sql, array $data = []) : array
+    public function execute(string $sql) : int
     {
-        return $this->prepare($sql, $data, PDO::FETCH_ASSOC)->fetch();
-    }
-
-    /**
-     * 查询值
-     */
-    public function value(string $sql, array $data = [], int $column = 0) : mixed
-    {
-        return $this->prepare($sql, $data, PDO::FETCH_NUM)->fetchColumn($column);
-    }
-
-    /**
-     * 操作数据
-     */
-    public function execute(string $sql, array $data = []) : int
-    {
-        return $this->prepare($sql, $data)->rowCount();
-    }
-
-    /**
-     * 预执行语句
-     */
-    public function prepare(string $sql, array $data = [], ?int $mode = null) : PDOStatement
-    {
-        $statement = $this->__call('prepare', [$sql, ...$data]);
-        if (isset($mode)) {
-            $statement->setFetchMode($mode);
-        }
-        return $statement;
+        return $this->handle->exec($sql);
     }
 
     /**
@@ -193,13 +175,37 @@ class Proxy
      */
     public function __call(string $method, array $arguments)
     {
-        if (in_array($method, ['prepare', 'exec'])) {
-            $data = array_splice($arguments, 1);
+        if (!method_exists($this->handle, $method)) {
+            throw new RuntimeException(sprintf('Call to undefined method %s::%s()', $this->handle::class, $method));
         }
-        $result = $this->handle->$method(...$arguments);
-        if ($result instanceof PDOStatement && isset($data)) {
-            $result->execute($data);
-        }
-        return $result;
+        return $this->handle->$method(...$arguments);
     }
+
+
+
+
+
+
+
+
+
+
+
+    // /**
+    //  * 查询一行
+    //  */
+    // public function first(string $sql, array $data = []) : array
+    // {
+    //     return $this->prepare($sql, $data, PDO::FETCH_ASSOC)->fetch();
+    // }
+
+    // /**
+    //  * 查询值
+    //  */
+    // public function value(string $sql, array $data = [], int $column = 0) : mixed
+    // {
+    //     return $this->prepare($sql, $data, PDO::FETCH_NUM)->fetchColumn($column);
+    // }
+
+
 }

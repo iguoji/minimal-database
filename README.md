@@ -1,3 +1,30 @@
+## 2020-11-08
+
+### 代理类
+
+如 PDOProxy
+
+连接：connect(连接数据库，支持重连一次)
+
+释放：release(释放连接时调用)
+
+通信：message(操作数据库，支持断线重连)
+
+事务：beginTransaction、commit、rollback、inTransaction
+
+### 查询类
+
+如 MysqlQuery / MssqlQuery / OracleQuery
+
+查询：query(查询多行，返回数组)、first(查询第一行，返回对象)、value(查询第一行的某一个值)
+
+修改：execute、exec
+
+
+
+
+
+
 ## 概念
 
 ### 管理类
