@@ -1,5 +1,6 @@
 {
     "name": "iguoji/minimal-database",
+    "type": "library",
     "description": "php pdo database support",
     "keywords": ["database", "pdo", "connection pool"],
     "homepage": "https://github.com/iguoji/minimal-database",
