@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Minimal\Database;
 
+use PDO;
+
 /**
  * Sql构建类
  */
@@ -143,7 +145,7 @@ class Builder
     /**
      * 查询
      */
-    public function select(...$fields) : string
+    public function select(...$fields) : Statement
     {
         $fields = $fields ? $this->parseField($fields) : '*';
         $from = $this->from;
@@ -152,7 +154,7 @@ class Builder
         $limit = $this->limit;
         $orders = $this->orders;
 
-        return implode(' ', array_filter([
+        return new Statement(implode(' ', array_filter([
             'SELECT',
             $fields,
             'FROM ' . $from,
@@ -160,13 +162,21 @@ class Builder
             $wheres ? 'WHERE ' . $wheres : '',
             $orders ? 'ORDER BY ' . implode(', ', $orders) : '',
             $limit  ? 'LIMIT ' . $limit : '',
-        ], fn($s) => $s !== ''));
+        ], fn($s) => $s !== '')));
+    }
+
+    /**
+     * 查询一行
+     */
+    public function first(...$fields) : Statement
+    {
+        return $this->select(...$fields)->setFetchResult('fetch');
     }
 
     /**
      * 添加
      */
-    public function insert(array $data) : string
+    public function insert(array $data) : Statement
     {
         $from = $this->from;
         if (!is_array(reset($data))) {
@@ -181,17 +191,17 @@ class Builder
             }
             $values[] = $this->parseValue(array_values($item));
         }
-        return implode(' ', [
+        return new Statement(implode(' ', [
             'INSERT INTO ' . $from,
             $fields ? '(' . $fields . ')' : '',
             $values ? 'VALUES ' . implode(', ', $values) : '',
-        ]);
+        ]));
     }
 
     /**
      * 修改
      */
-    public function update(array $data) : string
+    public function update(array $data) : Statement
     {
         $from = $this->from;
         $set = [];
@@ -200,24 +210,84 @@ class Builder
         }
         $wheres = $this->parseWhere();
 
-        return implode(' ', [
+        return new Statement(implode(' ', [
             'UPDATE ' . $from,
             $set ? ' SET ' . implode(', ', $set) : '',
             $wheres ? 'WHERE ' . $wheres : '',
-        ]);
+        ]));
     }
 
     /**
      * 删除
      */
-    public function delete() : string
+    public function delete() : Statement
     {
         $from = $this->from;
         $wheres = $this->parseWhere();
-        return implode(' ', [
+        return new Statement(implode(' ', [
             'DELETE FROM ' . $from,
             $wheres ? 'WHERE ' . $wheres : '',
-        ]);
+        ]));
+    }
+
+    /**
+     * 聚合函数：统计
+     */
+    public function count(string $field = '*') : Statement
+    {
+        return $this->select(
+            new Raw(
+                sprintf('COUNT(%s) AS `MINIMAL_COUNT`', $this->parseField($field))
+            )
+        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+    }
+
+    /**
+     * 聚合函数：求和
+     */
+    public function sum(string $field) : Statement
+    {
+        return $this->select(
+            new Raw(
+                sprintf('SUM(%s) AS `MINIMAL_SUM`', $this->parseField($field))
+            )
+        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+    }
+
+    /**
+     * 聚合函数：求平均
+     */
+    public function avg(string $field) : Statement
+    {
+        return $this->select(
+            new Raw(
+                sprintf('AVG(%s) AS `MINIMAL_AVG`', $this->parseField($field))
+            )
+        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+    }
+
+    /**
+     * 聚合函数：最大
+     */
+    public function max(string $field) : Statement
+    {
+        return $this->select(
+            new Raw(
+                sprintf('MAX(%s) AS `MINIMAL_MAX`', $this->parseField($field))
+            )
+        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+    }
+
+    /**
+     * 聚合函数：最小
+     */
+    public function min(string $field) : Statement
+    {
+        return $this->select(
+            new Raw(
+                sprintf('MIN(%s) AS `MINIMAL_MIN`', $this->parseField($field))
+            )
+        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
     }
 
     /**
@@ -225,10 +295,12 @@ class Builder
      */
     private function parseField(array|string|Raw $field) : string
     {
-        if (is_null($field)) {
+        if (is_null($field) || $field == '*') {
             return '*';
         } else if (is_array($field)) {
             return implode(', ', array_map([$this, 'parseField'], $field));
+        } else if ($field instanceof Raw) {
+            return (string) $field;
         } else {
             $field = (string) $field;
             $array = false !== strpos($field, '.') ? explode('.', $field) : [$field];

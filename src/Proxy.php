@@ -6,8 +6,8 @@ namespace Minimal\Database;
 use PDO;
 use PDOStatement;
 use PDOException;
-use RuntimeException;
 use Throwable;
+use RuntimeException;
 use Minimal\Support\Arr;
 use Minimal\Support\Context;
 
@@ -24,6 +24,11 @@ class Proxy
     protected array $config;
 
     /**
+     * 句柄标识
+     */
+    protected int $token;
+
+    /**
      * 构造函数
      */
     public function __construct(array $config)
@@ -33,9 +38,12 @@ class Proxy
         // 创建连接
         $this->connect();
         // 当前标志
-        $this->token = Context::incr('proxy');
+        $this->token = Context::incr('database:proxy');
     }
 
+    /**
+     * 句柄标识
+     */
     public function getToken() : string
     {
         return 'Proxy# ' . $this->token;
@@ -155,19 +163,57 @@ class Proxy
     /**
      * 查询数据
      */
-    public function query(string $sql, array $data = []) : array
+    public function query(Statement|string $sql, array $data = []) : array|string
     {
+        $fetchMode = PDO::FETCH_ASSOC;
+        $fetchResult = 'fetchAll';
+
+        if ($sql instanceof Statement) {
+            $myStatement = $sql;
+            $sql = $myStatement->getSql();
+            $fetchMode = $myStatement->getFetchMode();
+            $fetchResult = $myStatement->getFetchResult();
+        }
+
         $statement = $this->handle->query($sql);
-        $statement->setFetchMode(PDO::FETCH_ASSOC);
-        return $statement->fetchAll();
+        if (false === $statement) {
+            throw new PDOException($this->handle->errorInfo()[2]);
+        }
+        $statement->setFetchMode($fetchMode);
+        $result = $statement->$fetchResult();
+
+        if (false === $result) {
+            switch ($fetchResult) {
+                case 'fetch':
+                case 'fetchAll':
+                    $result = [];
+                    break;
+            }
+        }
+
+        return $result;
     }
 
     /**
      * 执行语句
      */
-    public function execute(string $sql) : int
+    public function execute(Statement|string $sql) : int|string
     {
-        return $this->handle->exec($sql);
+        if ($sql instanceof Statement) {
+            $myStatement = $sql;
+            $sql = $myStatement->getSql();
+        }
+
+        $result = $this->handle->exec($sql);
+        if (false === $result) {
+            throw new PDOException($this->handle->errorInfo()[2]);
+        }
+
+        if (false !== stripos($sql, 'insert')) {
+            return $this->handle->lastInsertId();
+        }
+
+        return $result;
     }
 
     /**
@@ -180,32 +226,4 @@ class Proxy
         }
         return $this->handle->$method(...$arguments);
     }
-
-
-
-
-
-
-
-
-
-
-
-    // /**
-    //  * 查询一行
-    //  */
-    // public function first(string $sql, array $data = []) : array
-    // {
-    //     return $this->prepare($sql, $data, PDO::FETCH_ASSOC)->fetch();
-    // }
-
-    // /**
-    //  * 查询值
-    //  */
-    // public function value(string $sql, array $data = [], int $column = 0) : mixed
-    // {
-    //     return $this->prepare($sql, $data, PDO::FETCH_NUM)->fetchColumn($column);
-    // }
-
-
 }

@@ -9,7 +9,7 @@ use Minimal\Pool\Cluster;
 use Minimal\Support\Context;
 
 /**
- * 数据库
+ * 管理类
  */
 class Manager
 {
@@ -42,9 +42,9 @@ class Manager
     public function connection(string $key = null, string $group = null) : Proxy
     {
         // 不论分组最后使用的连接缓存Key
-        $lastTokenKey = sprintf('pool:last');
+        $lastTokenKey = sprintf('pool:database:last');
         // 此分组最后使用的连接缓存Key
-        $groupLastTokenKey = sprintf('pool:last:%s', $group);
+        $groupLastTokenKey = sprintf('pool:database:last:%s', $group);
 
         // 按条件选择
         if (func_num_args() === 0 && Context::has($lastTokenKey)) {
@@ -55,7 +55,7 @@ class Manager
             $token = Context::get($groupLastTokenKey);
         } else {
             // 使用：指定或默认的连接标识
-            $token = sprintf('pool:%s:%s', $group, $key ?? 'default');
+            $token = sprintf('pool:database:%s:%s', $group, $key ?? 'default');
         }
 
         // 保存标识
@@ -117,24 +117,39 @@ class Manager
     }
 
     /**
+     * 原始数据
+     */
+    public function raw(string $sql) : Raw
+    {
+        return new Raw($sql);
+    }
+
+    /**
      * 未知函数
      */
     public function __call(string $method, array $arguments) : mixed
     {
         // 获取连接
         $conn = $this->connection();
-        // 语法构建
-        if (!empty($this->builder) && method_exists($this->builder, $method)) {
-            // 从构建对象中获取Sql
-            $sql = $this->builder->$method(...$arguments);
-            if (!is_string($sql)) {
-                return $this;
-            }
-            // 保存本次Sql
-            $this->sql = $sql;
-            // 按情况处理
-            [$method, $arguments] = [stripos($sql, 'select') === 0 ? 'query' : 'execute', [$sql]];
+
+        // 句柄函数
+        if (empty($this->builder) || !method_exists($this->builder, $method)) {
+            return $conn->$method(...$arguments);
         }
+
+        // 从构建对象中获取Sql
+        $statement = $this->builder->$method(...$arguments);
+        if (! $statement instanceof Statement) {
+            return $this;
+        }
+
+        // 保存本次Sql
+        $this->sql = $statement->getSql();
+
+        // 按情况处理
+        $method = $statement->getOriginMethod();
+        $arguments = [$statement];
+
         // 返回结果
         return $conn->$method(...$arguments);
     }
