@@ -58,8 +58,9 @@ class Builder
     public function join(string $table, string|callable $field, mixed $op = null, mixed $value = null, string $type = 'inner') : static
     {
         $this->joins[] = sprintf(
-            '%s JOIN ON %s',
+            '%s JOIN %s ON %s',
             strtoupper($type),
+            $table,
             (clone $this)->where($field, $op, $value)->parseWhere(),
         );
         return $this;
@@ -231,6 +232,14 @@ class Builder
     }
 
     /**
+     * 特殊函数：单值
+     */
+    public function value(string $field) : Statement
+    {
+        return $this->select($field)->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+    }
+
+    /**
      * 聚合函数：统计
      */
     public function count(string $field = '*') : Statement
@@ -298,7 +307,17 @@ class Builder
         if (is_null($field) || $field == '*') {
             return '*';
         } else if (is_array($field)) {
-            return implode(', ', array_map([$this, 'parseField'], $field));
+            $arr = [];
+            foreach ($field as $k => $v) {
+                if (!is_int($k)) {
+                    $arr[] = $this->parseField(
+                        new Raw(sprintf('%s AS %s', $this->parseField($k), $this->parseField($v)))
+                    );
+                } else {
+                    $arr[] = $this->parseField($v);
+                }
+            }
+            return implode(', ', $arr);
         } else if ($field instanceof Raw) {
             return (string) $field;
         } else {

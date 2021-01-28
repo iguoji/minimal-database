@@ -138,9 +138,9 @@ class Proxy
     {
         $level = Context::get('database:transaction:level');
         if ($level === 1) {
-            $bool = $this->rollBack();
+            $bool = $this->handle->rollBack();
         } else if ($level > 1) {
-            $this->exec('ROLLBACK TO SAVEPOINT TRANS' . $level);
+            $this->handle->exec('ROLLBACK TO SAVEPOINT TRANS' . $level);
         }
         $level = max(0, $level - 1);
         Context::set('database:transaction:level', $level);
@@ -154,7 +154,7 @@ class Proxy
     {
         $level = Context::decr('database:transaction:level');
         if ($level === 0) {
-            return $this->commit();
+            return $this->handle->commit();
         } else {
             return true;
         }
@@ -163,7 +163,7 @@ class Proxy
     /**
      * 查询数据
      */
-    public function query(Statement|string $sql, array $data = []) : array|string
+    public function query(Statement|string $sql, array $data = []) : array|string|int|float
     {
         $fetchMode = PDO::FETCH_ASSOC;
         $fetchResult = 'fetchAll';
@@ -177,6 +177,9 @@ class Proxy
 
         $statement = $this->handle->query($sql);
         if (false === $statement) {
+            echo 'Sql::' . PHP_EOL;
+            echo $sql . PHP_EOL;
+            echo PHP_EOL;
             throw new PDOException($this->handle->errorInfo()[2]);
         }
         $statement->setFetchMode($fetchMode);
@@ -188,6 +191,15 @@ class Proxy
                 case 'fetchAll':
                     $result = [];
                     break;
+            }
+        }
+
+        // 聚合函数 - 类型转换
+        if ($fetchResult == 'fetchColumn' && is_numeric($result)) {
+            if (false === strpos($result, '.')) {
+                $result = (int) $result;
+            } else {
+                $result = (float) $result;
             }
         }
 

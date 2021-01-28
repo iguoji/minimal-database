@@ -150,6 +150,9 @@ class Manager
         $method = $statement->getOriginMethod();
         $arguments = [$statement];
 
+        // 清空构建器
+        unset($this->builder);
+
         // 返回结果
         return $conn->$method(...$arguments);
     }
