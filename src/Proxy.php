@@ -195,7 +195,7 @@ class Proxy
         }
 
         // 聚合函数 - 类型转换
-        if ($fetchResult == 'fetchColumn' && is_numeric($result)) {
+        if ($fetchResult == 'fetchColumn' && is_numeric($result) && !is_int($result) && !is_float($result)) {
             if (false === strpos($result, '.')) {
                 $result = (int) $result;
             } else {
