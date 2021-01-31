@@ -57,11 +57,18 @@ class Builder
      */
     public function join(string $table, string|callable $field, mixed $op = null, mixed $value = null, string $type = 'inner') : static
     {
+        if (false !== stripos($table, ' AS ')) {
+            $table = implode(' AS ', array_map(fn($s) => $this->parseField($s), explode(' AS ', $table)));
+        }
+        if (is_string($field) && is_string($op) && is_null($value)) {
+            $value = $op;
+            $op = '=';
+        }
         $this->joins[] = sprintf(
             '%s JOIN %s ON %s',
             strtoupper($type),
             $table,
-            (clone $this)->where($field, $op, $value)->parseWhere(),
+            (clone $this)->where($field, $op, new Raw($this->parseField($value)))->parseWhere(),
         );
         return $this;
     }
@@ -138,6 +145,7 @@ class Builder
      */
     public function order(string $field, string $direction = 'asc') : static
     {
+        $field = $this->parseField($field);
         $direction = strtoupper($direction);
         $this->orders[] = "$field $direction";
         return $this;

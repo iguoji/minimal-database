@@ -191,6 +191,8 @@ class Proxy
                 case 'fetchAll':
                     $result = [];
                     break;
+                case 'fetchColumn':
+                    $result = 0;
             }
         }
 
