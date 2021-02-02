@@ -118,7 +118,7 @@ class Proxy
         if ($level === 1) {
             $bool = $this->handle->beginTransaction();
         } else {
-            $bool = $this->handle->exec('SAVEPOINT TRANS' . $level);
+            $this->handle->exec('SAVEPOINT TRANS' . $level);
         }
         return isset($bool) ? $bool : true;
     }
@@ -161,51 +161,60 @@ class Proxy
     }
 
     /**
+     * 运行语句
+     */
+    public function run(Statement $origin) : mixed
+    {
+        // 最终结果
+        $result = null;
+        // 预定义
+        $statement = $this->handle->prepare($origin->getSql());
+        if (false === $statement) {
+            echo 'Sql::' . PHP_EOL;
+            echo $origin->getSql() . PHP_EOL;
+            echo PHP_EOL;
+            throw new PDOException($this->handle->errorInfo()[2]);
+        }
+        // 执行
+        if (false === $statement->execute()) {
+            echo 'Sql::' . PHP_EOL;
+            echo $origin->getSql() . PHP_EOL;
+            echo PHP_EOL;
+            throw new PDOException($statement->errorInfo()[2]);
+        }
+        // 当前句柄
+        $handle = $statement;
+        // 循环处理
+        $bindings = $origin->getBindings();
+        foreach ($bindings as $bind) {
+            // 当前句柄
+            if ($bind['method'] == 'handle') {
+                $handle = $this->handle;
+                continue;
+            }
+            // 方法名称
+            $method = $bind['method'];
+            // 处理程序
+            $result = $handle->$method(...$bind['arguments']);
+        }
+        // 像数字，就转成数字
+        if (is_numeric($result) && !is_int($result) && !is_float($result)) {
+            $result = false === strpos($result, '.')
+                ? (int) $result
+                : (float) number_format((float) $result, 2, '.', '');
+        }
+        // 返回结果
+        return $result;
+    }
+
+    /**
      * 查询数据
      */
     public function query(Statement|string $sql, array $data = []) : array|string|int|float
     {
-        $fetchMode = PDO::FETCH_ASSOC;
-        $fetchResult = 'fetchAll';
-
-        if ($sql instanceof Statement) {
-            $myStatement = $sql;
-            $sql = $myStatement->getSql();
-            $fetchMode = $myStatement->getFetchMode();
-            $fetchResult = $myStatement->getFetchResult();
-        }
-
-        $statement = $this->handle->query($sql);
-        if (false === $statement) {
-            echo 'Sql::' . PHP_EOL;
-            echo $sql . PHP_EOL;
-            echo PHP_EOL;
-            throw new PDOException($this->handle->errorInfo()[2]);
-        }
-        $statement->setFetchMode($fetchMode);
-        $result = $statement->$fetchResult();
-
-        if (false === $result) {
-            switch ($fetchResult) {
-                case 'fetch':
-                case 'fetchAll':
-                    $result = [];
-                    break;
-                case 'fetchColumn':
-                    $result = 0;
-            }
-        }
-
-        // 聚合函数 - 类型转换
-        if ($fetchResult == 'fetchColumn' && is_numeric($result) && !is_int($result) && !is_float($result)) {
-            if (false === strpos($result, '.')) {
-                $result = (int) $result;
-            } else {
-                $result = (float) $result;
-            }
-        }
-
-        return $result;
+        $statement = $sql instanceof Statement ? $sql : new Statement($sql);
+        $statement->fetchAll(PDO::FETCH_ASSOC);
+        return $this->run($statement);
     }
 
     /**
@@ -213,21 +222,9 @@ class Proxy
      */
     public function execute(Statement|string $sql) : int|string
     {
-        if ($sql instanceof Statement) {
-            $myStatement = $sql;
-            $sql = $myStatement->getSql();
-        }
-
-        $result = $this->handle->exec($sql);
-        if (false === $result) {
-            throw new PDOException($this->handle->errorInfo()[2]);
-        }
-
-        if (false !== stripos($sql, 'insert')) {
-            return $this->handle->lastInsertId();
-        }
-
-        return $result;
+        $statement = $sql instanceof Statement ? $sql : new Statement($sql);
+        $statement->rowCount();
+        return $this->run($statement);
     }
 
     /**

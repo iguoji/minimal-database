@@ -152,43 +152,14 @@ class Builder
     }
 
     /**
-     * 查询
-     */
-    public function select(...$fields) : Statement
-    {
-        $fields = $fields ? $this->parseField($fields) : '*';
-        $from = $this->from;
-        $joins = $this->joins;
-        $wheres = $this->parseWhere();
-        $limit = $this->limit;
-        $orders = $this->orders;
-
-        return new Statement(implode(' ', array_filter([
-            'SELECT',
-            $fields,
-            'FROM ' . $from,
-            $joins  ? implode(' ', $joins) : '',
-            $wheres ? 'WHERE ' . $wheres : '',
-            $orders ? 'ORDER BY ' . implode(', ', $orders) : '',
-            $limit  ? 'LIMIT ' . $limit : '',
-        ], fn($s) => $s !== '')));
-    }
-
-    /**
-     * 查询一行
-     */
-    public function first(...$fields) : Statement
-    {
-        return $this->select(...$fields)->setFetchResult('fetch');
-    }
-
-    /**
      * 添加
      */
     public function insert(array $data) : Statement
     {
         $from = $this->from;
+        $isMul = true;
         if (!is_array(reset($data))) {
+            $isMul = false;
             $data = [$data];
         }
         $fields = null;
@@ -200,11 +171,14 @@ class Builder
             }
             $values[] = $this->parseValue(array_values($item));
         }
-        return new Statement(implode(' ', [
+        $statement = new Statement(implode(' ', [
             'INSERT INTO ' . $from,
             $fields ? '(' . $fields . ')' : '',
             $values ? 'VALUES ' . implode(', ', $values) : '',
         ]));
+        return $isMul
+            ? $statement->rowCount()
+            : $statement->handle()->lastInsertId();
     }
 
     /**
@@ -219,11 +193,12 @@ class Builder
         }
         $wheres = $this->parseWhere();
 
-        return new Statement(implode(' ', [
+        $statement = new Statement(implode(' ', [
             'UPDATE ' . $from,
             $set ? ' SET ' . implode(', ', $set) : '',
             $wheres ? 'WHERE ' . $wheres : '',
         ]));
+        return $statement->rowCount();
     }
 
     /**
@@ -233,10 +208,52 @@ class Builder
     {
         $from = $this->from;
         $wheres = $this->parseWhere();
-        return new Statement(implode(' ', [
+
+        $statement = new Statement(implode(' ', [
             'DELETE FROM ' . $from,
             $wheres ? 'WHERE ' . $wheres : '',
         ]));
+        return $statement->rowCount();
+    }
+
+    /**
+     * 查询
+     */
+    public function select(...$fields) : Statement
+    {
+        $fields = $fields ? $this->parseField($fields) : '*';
+        $from = $this->from;
+        $joins = $this->joins;
+        $wheres = $this->parseWhere();
+        $limit = $this->limit;
+        $orders = $this->orders;
+
+        $statement = new Statement(implode(' ', array_filter([
+            'SELECT',
+            $fields,
+            'FROM ' . $from,
+            $joins  ? implode(' ', $joins) : '',
+            $wheres ? 'WHERE ' . $wheres : '',
+            $orders ? 'ORDER BY ' . implode(', ', $orders) : '',
+            $limit  ? 'LIMIT ' . $limit : '',
+        ], fn($s) => $s !== '')));
+        return $statement->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * 查询一行
+     */
+    public function first(...$fields) : Statement
+    {
+        return $this->select(...$fields)->reset()->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * 特殊函数：单列
+     */
+    public function column(string $field) : Statement
+    {
+        return $this->select($field)->reset()->fetchAll(PDO::FETCH_COLUMN);
     }
 
     /**
@@ -244,7 +261,7 @@ class Builder
      */
     public function value(string $field) : Statement
     {
-        return $this->select($field)->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        return $this->select($field)->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**
@@ -256,7 +273,7 @@ class Builder
             new Raw(
                 sprintf('COUNT(%s) AS `MINIMAL_COUNT`', $this->parseField($field))
             )
-        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        )->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**
@@ -268,7 +285,7 @@ class Builder
             new Raw(
                 sprintf('SUM(%s) AS `MINIMAL_SUM`', $this->parseField($field))
             )
-        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        )->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**
@@ -280,7 +297,7 @@ class Builder
             new Raw(
                 sprintf('AVG(%s) AS `MINIMAL_AVG`', $this->parseField($field))
             )
-        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        )->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**
@@ -292,7 +309,7 @@ class Builder
             new Raw(
                 sprintf('MAX(%s) AS `MINIMAL_MAX`', $this->parseField($field))
             )
-        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        )->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**
@@ -304,7 +321,7 @@ class Builder
             new Raw(
                 sprintf('MIN(%s) AS `MINIMAL_MIN`', $this->parseField($field))
             )
-        )->setFetchMode(PDO::FETCH_NUM)->setFetchResult('fetchColumn');
+        )->reset()->setFetchMode(PDO::FETCH_NUM)->fetchColumn();
     }
 
     /**

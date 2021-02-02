@@ -146,14 +146,10 @@ class Manager
         // 保存本次Sql
         $this->sql = $statement->getSql();
 
-        // 按情况处理
-        $method = $statement->getOriginMethod();
-        $arguments = [$statement];
-
         // 清空构建器
         unset($this->builder);
 
         // 返回结果
-        return $conn->$method(...$arguments);
+        return $conn->run($statement);
     }
 }

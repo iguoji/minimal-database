@@ -11,9 +11,14 @@ use PDO;
 class Statement
 {
     /**
+     * 操作绑定
+     */
+    protected array $bindings = [];
+
+    /**
      * 构造函数
      */
-    public function __construct(protected string $sql, protected int $fetchMode = PDO::FETCH_ASSOC, protected string $fetchResult = 'fetchAll')
+    public function __construct(protected string $sql)
     {
     }
 
@@ -26,44 +31,28 @@ class Statement
     }
 
     /**
-     * 设置模式
+     * 获取步骤
      */
-    public function setFetchMode(int $fetchMode) : static
+    public function getBindings() : array
     {
-        $this->fetchMode = $fetchMode;
+        return $this->bindings;
+    }
+
+    /**
+     * 重置步骤
+     */
+    public function reset() : static
+    {
+        $this->bindings = [];
         return $this;
     }
 
     /**
-     * 获取模式
+     * 未知函数
      */
-    public function getFetchMode() : int
+    public function __call(string $method, array $arguments) : static
     {
-        return $this->fetchMode;
-    }
-
-    /**
-     * 设置结果集
-     */
-    public function setFetchResult(string $fetchResult) : static
-    {
-        $this->fetchResult = $fetchResult;
+        $this->bindings[] = ['method' => $method, 'arguments' => $arguments];
         return $this;
-    }
-
-    /**
-     * 获取结果
-     */
-    public function getFetchResult() : string
-    {
-        return $this->fetchResult;
-    }
-
-    /**
-     * 获取原始方法
-     */
-    public function getOriginMethod() : string
-    {
-        return stripos($this->getSql(), 'select') === 0 ? 'query' : 'execute';
     }
 }
