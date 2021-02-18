@@ -376,27 +376,15 @@ class Builder
         $str = '';
         $wheres = $wheres ?: $this->wheres;
         foreach ($wheres as $item) {
+            if (is_array($item[1])) {
+                $item[1] = '(' . $this->parseWhere($item[1]) . ')';
+            }
             if ($str === '') {
                 $str = $item[1];
             } else {
-                if (is_array($item[1])) {
-                    $item[1] = '(' . $this->parseWhere($item[1]) . ')';
-                }
                 $str .= " $item[0] $item[1]";
             }
         }
         return $str;
-    }
-
-    /**
-     * 复制
-     */
-    public function __clone()
-    {
-        $this->from = '';
-        $this->joins = [];
-        $this->wheres = [];
-        $this->limit = '';
-        $this->orders = [];
     }
 }

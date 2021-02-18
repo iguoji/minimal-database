@@ -125,6 +125,14 @@ class Manager
     }
 
     /**
+     * 复制对象
+     */
+    public function __clone()
+    {
+        $this->builder = clone $this->builder;
+    }
+
+    /**
      * 未知函数
      */
     public function __call(string $method, array $arguments) : mixed

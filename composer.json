@@ -4,6 +4,7 @@
     "description": "php pdo database support",
     "keywords": ["database", "pdo", "connection pool"],
     "homepage": "https://github.com/iguoji/minimal-database",
+    "license": "Apache-2.0",
     "require": {
         "php": ">=8.0.0",
         "iguoji/minimal-support": "dev-master",
