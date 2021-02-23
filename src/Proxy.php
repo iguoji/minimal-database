@@ -14,6 +14,13 @@ use Minimal\Support\Context;
 class Proxy
 {
     /**
+     * 连接已关闭，例如Mysql重启过
+     * Connection was killed
+     * 连接已过期，例如超过连接的有效空闲时间
+     * MySQL server has gone away
+     */
+
+    /**
      * 驱动句柄
      */
     protected PDO $handle;
@@ -104,8 +111,8 @@ class Proxy
      */
     public function release() : void
     {
-        if ($this->handle->inTransaction()) {
-            $this->handle->rollBack();
+        if ($this->__call('inTransaction', [])) {
+            $this->__call('rollBack', []);
         }
     }
 
@@ -116,9 +123,9 @@ class Proxy
     {
         $level = Context::incr('database:transaction:level');
         if ($level === 1) {
-            $bool = $this->handle->beginTransaction();
+            $bool = $this->__call('beginTransaction', []);
         } else {
-            $this->handle->exec('SAVEPOINT TRANS' . $level);
+            $this->__call('exec', ['SAVEPOINT TRANS' . $level]);
         }
         return isset($bool) ? $bool : true;
     }
@@ -138,9 +145,9 @@ class Proxy
     {
         $level = Context::get('database:transaction:level');
         if ($level === 1) {
-            $bool = $this->handle->rollBack();
+            $bool = $this->__call('rollBack', []);
         } else if ($level > 1) {
-            $this->handle->exec('ROLLBACK TO SAVEPOINT TRANS' . $level);
+            $this->__call('exec', ['ROLLBACK TO SAVEPOINT TRANS' . $level]);
         }
         $level = max(0, $level - 1);
         Context::set('database:transaction:level', $level);
@@ -154,7 +161,7 @@ class Proxy
     {
         $level = Context::decr('database:transaction:level');
         if ($level === 0) {
-            return $this->handle->commit();
+            return $this->__call('commit', []);
         } else {
             return true;
         }
@@ -168,22 +175,7 @@ class Proxy
         // 最终结果
         $result = null;
         // 预定义
-        $statement = $this->handle->prepare($origin->getSql());
-        if (false === $statement) {
-            echo 'Sql::' . PHP_EOL;
-            echo $origin->getSql() . PHP_EOL;
-            echo PHP_EOL;
-            throw new PDOException($this->handle->errorInfo()[2]);
-        }
-        // 执行
-        if (false === $statement->execute()) {
-            echo 'Sql::' . PHP_EOL;
-            echo $origin->getSql() . PHP_EOL;
-            echo PHP_EOL;
-            throw new PDOException($statement->errorInfo()[2]);
-        }
-        // 当前句柄
-        $handle = $statement;
+        $handle = $this->__call('prepare', [$origin->getSql()]);
         // 循环处理
         $bindings = $origin->getBindings();
         foreach ($bindings as $bind) {
@@ -232,9 +224,28 @@ class Proxy
      */
     public function __call(string $method, array $arguments)
     {
+        // 不存在的方法
         if (!method_exists($this->handle, $method)) {
             throw new RuntimeException(sprintf('Call to undefined method %s::%s()', $this->handle::class, $method));
         }
-        return $this->handle->$method(...$arguments);
+        // 三次机会
+        for ($i = 0;$i < 3; $i++) {
+            // 执行方法
+            $result = $this->handle->$method(...$arguments);
+            // 出现错误
+            if (
+                // PDO Error
+                (false === $result && '00000' !== $this->handle->errorCode())
+                // PDO Statement Error
+                || ($result instanceof PDOStatement && false === $result->execute() && '00000' !== $result->errorCode())
+            ) {
+                // 错误重连
+                $this->connect();
+                // 再试一次
+                continue;
+            }
+            // 返回结果
+            return $result;
+        }
     }
 }
