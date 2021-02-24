@@ -189,6 +189,16 @@ class Proxy
             // 处理程序
             $result = $handle->$method(...$bind['arguments']);
         }
+        // false的处理
+        if (false === $result) {
+            if ($origin->has('fetchColumn')) {
+                // 单值、聚合函数
+                $result = $origin->sqlContains('COUNT', 'SUM', 'AVG', 'MIN', 'MAX') ? 0 : null;
+            } else {
+                // 单行、单列、所有行
+                $result = [];
+            }
+        }
         // 像数字，就转成数字
         if (is_numeric($result) && !is_int($result) && !is_float($result)) {
             $result = false === strpos($result, '.')

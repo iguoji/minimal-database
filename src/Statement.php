@@ -31,11 +31,37 @@ class Statement
     }
 
     /**
+     * Sql包含字符串
+     */
+    public function sqlContains(...$strs) : bool
+    {
+        foreach ($strs as $key => $str) {
+            if (str_contains($this->sql, $str)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 获取步骤
      */
     public function getBindings() : array
     {
         return $this->bindings;
+    }
+
+    /**
+     * 存在步骤
+     */
+    public function has(string $name) : bool
+    {
+        foreach ($this->bindings as $bind) {
+            if ($bind['method'] == $name) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
