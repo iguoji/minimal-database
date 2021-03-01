@@ -103,7 +103,7 @@ class Builder
             // and
             if (func_num_args() <= 2) {
                 $value = $op;
-                $op = '=';
+                $op = is_array($value) ? 'IN' : '=';
             }
             if (is_null($value)) {
                 $op = $op == '=' ? 'IS' : 'IS NOT';

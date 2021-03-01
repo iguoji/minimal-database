@@ -240,19 +240,26 @@ class Proxy
         }
         // 三次机会
         for ($i = 0;$i < 3; $i++) {
-            // 执行方法
+            // 执行方法 | 不允许抛出异常
             $result = $this->handle->$method(...$arguments);
-            // 出现错误
-            if (
-                // PDO Error
-                (false === $result && '00000' !== $this->handle->errorCode())
-                // PDO Statement Error
-                || ($result instanceof PDOStatement && false === $result->execute() && '00000' !== $result->errorCode())
-            ) {
-                // 错误重连
-                $this->connect();
-                // 再试一次
-                continue;
+            // 错误信息
+            $errorInfo = $this->handle->errorInfo();
+            if ($result instanceof PDOStatement && false === $result->execute()) {
+                $errorInfo = $result->errorInfo();
+            }
+            // 发送错误
+            if (!empty($errorInfo[1])) {
+                if (in_array($errorInfo[1], [2002, 2006, 2013], true)) {
+                    // 错误重连
+                    $this->connect();
+                    // 再试一次
+                    continue;
+                } else {
+                    // 类似语法等错误
+                    $ex = new PDOException($errorInfo[2], $errorInfo[1]);
+                    $ex->errorInfo = $errorInfo;
+                    throw $ex;
+                }
             }
             // 返回结果
             return $result;
