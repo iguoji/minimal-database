@@ -3,10 +3,9 @@ declare(strict_types=1);
 
 namespace Minimal\Database;
 
-use PDOException;
-use Swoole\Coroutine;
-use Minimal\Pool\Cluster;
-use Minimal\Support\Context;
+use Exception;
+use Minimal\Database\Contracts\QueryInterface;
+use Minimal\Database\Contracts\ProxyInterface;
 
 /**
  * 管理类
@@ -14,71 +13,47 @@ use Minimal\Support\Context;
 class Manager
 {
     /**
-     * 集群对象
-     */
-    protected Cluster $cluster;
-
-    /**
-     * 语法构建对象
-     */
-    protected Builder $builder;
-
-    /**
      * 最后的Sql语句
      */
     protected string $sql;
 
     /**
+     * 连接列表
+     */
+    protected array $connections = [];
+
+    /**
      * 构造函数
      */
-    public function __construct(array $configs, string $proxy = Proxy::class)
-    {
-        $this->cluster = new Cluster($configs, $proxy);
-    }
+    public function __construct(protected array $configs)
+    {}
 
     /**
      * 获取连接
      */
-    public function connection(string $key = null, string $group = null) : Proxy
+    public function connection(string $name = 'default') : ProxyInterface
     {
-        // 不论分组最后使用的连接缓存Key
-        $lastTokenKey = sprintf('pool:database:last');
-        // 此分组最后使用的连接缓存Key
-        $groupLastTokenKey = sprintf('pool:database:last:%s', $group);
-
-        // 按条件选择
-        if (func_num_args() === 0 && Context::has($lastTokenKey)) {
-            // 使用：不论分组最后使用的连接标识
-            $token = Context::get($lastTokenKey);
-        } else if (is_null($key) && Context::has($groupLastTokenKey)) {
-            // 使用：当前分组最后使用的连接标识
-            $token = Context::get($groupLastTokenKey);
-        } else {
-            // 使用：指定或默认的连接标识
-            $token = sprintf('pool:database:%s:%s', $group, $key ?? 'default');
+        // 存在连接
+        if (isset($this->connections[$name])) {
+            return $this->connections[$name];
         }
-
-        // 保存标识
-        Context::set($groupLastTokenKey, $token);
-        Context::set($lastTokenKey, $token);
-
-        // 存在连接、直接返回
-        if (Context::has($token)) {
-            return Context::get($token);
+        // 获取配置
+        $config = $this->configs[$name] ?? [];
+        if (empty($config)) {
+            throw new Exception("database config [$name] not found");
         }
-
-        // 获取连接
-        [$group, $key, $conn] = $this->cluster->get($group, $key);
-        // 保存连接
-        Context::set($token, $conn);
-        // 归还连接
-        Coroutine::defer(function() use($group, $key, $conn, $token){
-            Context::del($token);
-            $this->cluster->put($group, $key, $conn);
-        });
-
+        // 默认配置
+        $proxy = $config['proxy'] ?? null;
+        if (is_null($proxy)) {
+            $driver = $config['driver'] ?? 'mysql';
+            if ($driver == 'mysql') {
+                $proxy = \Minimal\Database\Proxy\MysqlProxy::class;
+            } else {
+                throw new Exception("database not support [$driver] driver");
+            }
+        }
         // 返回连接
-        return $conn;
+        return $this->connections[$name] = new $proxy($config);
     }
 
     /**
@@ -100,20 +75,11 @@ class Manager
     }
 
     /**
-     * 最后的Sql语句
-     */
-    public function getLastSql() : string
-    {
-        return $this->sql ?? '';
-    }
-
-    /**
      * 语法构建
      */
-    public function table(string $table, string $as = null) : static
+    public function table(string $table, string $as = null) : QueryInterface
     {
-        $this->builder = new Builder($table, $as);
-        return $this;
+        // 等待：系统预留
     }
 
     /**
@@ -125,39 +91,17 @@ class Manager
     }
 
     /**
-     * 复制对象
-     */
-    public function __clone()
-    {
-        $this->builder = clone $this->builder;
-    }
-
-    /**
      * 未知函数
      */
     public function __call(string $method, array $arguments) : mixed
     {
         // 获取连接
         $conn = $this->connection();
-
-        // 句柄函数
-        if (empty($this->builder) || !method_exists($this->builder, $method)) {
-            return $conn->$method(...$arguments);
-        }
-
-        // 从构建对象中获取Sql
-        $statement = $this->builder->$method(...$arguments);
-        if (! $statement instanceof Statement) {
-            return $this;
-        }
-
+        // 获取结果
+        $result = $conn->$method(...$arguments);
         // 保存本次Sql
-        $this->sql = $statement->getSql();
-
-        // 清空构建器
-        unset($this->builder);
-
+        $this->sql = $conn->lastSql();
         // 返回结果
-        return $conn->run($statement);
+        return $result;
     }
 }

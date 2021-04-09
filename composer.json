@@ -6,7 +6,7 @@
     "homepage": "https://github.com/iguoji/minimal-database",
     "license": "Apache-2.0",
     "require": {
-        "php": ">=8.0.0",
+        "php": "^8.0",
         "iguoji/minimal-support": "dev-master",
         "iguoji/minimal-pool": "dev-master"
     },
