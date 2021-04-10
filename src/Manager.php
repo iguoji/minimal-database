@@ -18,6 +18,16 @@ class Manager
     protected string $sql;
 
     /**
+     * 当前连接名称
+     */
+    protected string $store = 'default';
+
+    /**
+     * 当前连接配置
+     */
+    protected array $config = [];
+
+    /**
      * 连接列表
      */
     protected array $connections = [];
@@ -29,48 +39,69 @@ class Manager
     {}
 
     /**
-     * 获取连接
+     * 配置处理
      */
-    public function connection(string $name = 'default') : ProxyInterface
+    public function config(string $name) : array
     {
-        // 存在连接
-        if (isset($this->connections[$name])) {
-            return $this->connections[$name];
-        }
         // 获取配置
         $config = $this->configs[$name] ?? [];
         if (empty($config)) {
             throw new Exception("database config [$name] not found");
         }
-        // 默认配置
-        $proxy = $config['proxy'] ?? null;
-        if (is_null($proxy)) {
-            $driver = $config['driver'] ?? 'mysql';
+        // 默认驱动
+        $driver = $config['driver'] ?? 'mysql';
+        // 默认代理
+        if (!isset($config['proxy']) || is_null($config['proxy'])) {
             if ($driver == 'mysql') {
-                $proxy = \Minimal\Database\Proxy\MysqlProxy::class;
+                $config['proxy'] = \Minimal\Database\Proxy\MysqlProxy::class;
             } else {
-                throw new Exception("database not support [$driver] driver");
+                throw new Exception("database not support [$driver] driver proxy");
             }
         }
+        // 默认查询
+        if (!isset($config['query']) || is_null($config['query'])) {
+            if ($driver == 'mysql') {
+                $config['query'] = \Minimal\Database\Query\MysqlQuery::class;
+            } else {
+                throw new Exception("database not support [$driver] driver query");
+            }
+        }
+        // 返回配置
+        return $config;
+    }
+
+    /**
+     * 获取连接
+     */
+    public function connection(string $name = 'default') : ProxyInterface
+    {
+        // 保存名称
+        $this->store = $name;
+        // 存在连接
+        if (isset($this->connections[$name])) {
+            return $this->connections[$name];
+        }
+        // 配置处理
+        $config = $this->config($name);
         // 返回连接
-        return $this->connections[$name] = new $proxy($config);
+        return $this->connections[$name] = new $config['proxy']($config);
     }
 
     /**
      * 使用主写连接
      */
-    public function master(string $key = null) : static
+    public function master(int|string $key = null) : static
     {
-        $this->connection($key, 'master');
+        $this->connection('master', $key);
         return $this;
     }
 
     /**
      * 使用从读连接
      */
-    public function slave(string $key = null) : static
+    public function slave(int|string $key = null) : static
     {
-        $this->connection($key, 'slave');
+        $this->connection('slave', $key);
         return $this;
     }
 
@@ -79,7 +110,10 @@ class Manager
      */
     public function table(string $table, string $as = null) : QueryInterface
     {
-        // 等待：系统预留
+        // 获取配置
+        $config = $this->config($this->store);
+        // 返回查询
+        return (new $config['query']($this))->from($table, $as);
     }
 
     /**

@@ -33,7 +33,7 @@ class PDOProxy implements ProxyInterface
      * 预定义选项
      */
     protected array $options = [];
-    
+
     /**
      * 预定义属性
      */
@@ -50,10 +50,10 @@ class PDOProxy implements ProxyInterface
         PDO::ATTR_STATEMENT_CLASS   =>  [PDOStatement::class],
 
         /**
-         * 启用或禁用预处理语句的模拟。 
+         * 启用或禁用预处理语句的模拟。
          * 有些驱动不支持或有限度地支持本地预处理。
          * 使用此设置强制PDO总是模拟预处理语句（如果为 true ），或试着使用本地预处理语句（如果为 false）。
-         * 如果驱动不能成功预处理当前查询，它将总是回到模拟预处理语句上。 
+         * 如果驱动不能成功预处理当前查询，它将总是回到模拟预处理语句上。
          */
         PDO::ATTR_EMULATE_PREPARES  =>  false,
 
@@ -106,7 +106,7 @@ class PDOProxy implements ProxyInterface
     {
     }
 
-    
+
 
     /**
      * 开启事务
@@ -188,7 +188,7 @@ class PDOProxy implements ProxyInterface
         $statement = $this->query($sql, $parameters);
         return $statement->fetchAll(PDO::FETCH_COLUMN);
     }
-    
+
     /**
      * 获取单值
      */
@@ -197,7 +197,7 @@ class PDOProxy implements ProxyInterface
         $statement = $this->query($sql, $parameters);
         return $statement->fetchColumn();
     }
-    
+
 
 
     /**
@@ -286,22 +286,27 @@ class PDOProxy implements ProxyInterface
             $this->connect();
         }
 
-        // 调用方法
-        $result = $this->handle->$method(...$arguments);
+        try {
+            // 调用方法
+            $result = $this->handle->$method(...$arguments);
 
-        // 保存语句
-        if ($result instanceof PDOStatement) {
-            $this->sql = $result->queryString;
-        } else if ($method == 'exec') {
-            $this->sql = $arguments[0] ?? '';
-        }
-
-        // 主动执行
-        if ($result instanceof PDOStatement) {
-            $bool = $result->execute($this->inputParameters);
-            if (false === $bool) {
-                throw new PDOException('database PDOStatement execute fail');
+            // 保存语句
+            if ($result instanceof PDOStatement) {
+                $this->sql = $result->queryString;
+            } else if ($method == 'exec') {
+                $this->sql = $arguments[0] ?? '';
             }
+
+            // 主动执行
+            if ($result instanceof PDOStatement) {
+                $bool = $result->execute($this->inputParameters);
+                if (false === $bool) {
+                    throw new PDOException('database PDOStatement execute fail');
+                }
+            }
+        } catch (PDOException $ex) {
+            var_dump($method, $arguments, $this->inputParameters);
+            throw $ex;
         }
 
         // 清空参数
@@ -310,4 +315,4 @@ class PDOProxy implements ProxyInterface
         // 返回结果
         return $result;
     }
-} 
+}
