@@ -9,10 +9,12 @@ use Minimal\Database\Manager;
 ini_set('display_errors', 'stderr');
 // 报告错误
 error_reporting(E_ALL);
+// 地区时区
+date_default_timezone_set('Asia/Shanghai');
 
 
 $db = new Manager(
-    require 'db.php'
+    require 'config.php'
 );
 
 
@@ -98,6 +100,18 @@ var_dump(
             'ua'    =>  null,
             'created_at'    =>  date('Y-m-d H:i:s')
         ]]),
+
+    $db->table('log')
+        ->where('uid', 1)
+        ->update([
+            'updated_at'    =>  date('Y-m-d H:i:s')
+        ]),
+
+    $db->table('log')
+        ->where('id', '=', $db->raw('(SELECT MAX(`id`) FROM `log`)'))
+        ->delete(),
+
+    $db->table('log')->truncate(),
 
     // $db->table('account', 'a')
     //     ->field('message', 'message.uid', '=', 'a.id')

@@ -30,22 +30,22 @@ interface QueryInterface
     /**
      * 表连接
      */
-    public function join(string $table, Closure|string $first, string $operator = null, string $second = null, string $type = 'INNER') : static;
+    public function join(string $table, Closure|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER') : static;
 
     /**
      * 表连接 - 左
      */
-    public function leftJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static;
+    public function leftJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 右
      */
-    public function rightJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static;
+    public function rightJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 交叉
      */
-    public function crossJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static;
+    public function crossJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 字段
@@ -55,12 +55,12 @@ interface QueryInterface
     /**
      * 条件
      */
-    public function where(Closure|string|array $column, string $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function where(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 或
      */
-    public function orWhere(Closure|string|array $column, string $operator = null, mixed $value = null) : static;
+    public function orWhere(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 分组
@@ -70,12 +70,12 @@ interface QueryInterface
     /**
      * 条件 - 分组后
      */
-    public function having(string $column, string $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function having(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 分组后 - 或
      */
-    public function orHaving(string $column, string $operator = null, mixed $value = null) : static;
+    public function orHaving(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 排序
@@ -170,12 +170,12 @@ interface QueryInterface
     /**
      * 插入数据
      */
-    public function insert(array $values) : bool;
+    public function insert(array $data) : bool;
 
     /**
      * 修改数据
      */
-    public function update(array $values) : int;
+    public function update(array $data) : int;
 
     /**
      * 删除数据

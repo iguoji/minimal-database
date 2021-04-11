@@ -89,21 +89,21 @@ class MysqlQuery implements QueryInterface
     /**
      * 表连接
      */
-    public function join(string $table, Closure|string $first, string $operator = null, string $second = null, string $type = 'INNER') : static
+    public function join(string $table, Closure|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER') : static
     {
         $table = false !== strpos($table, ' AS ')
             ? implode(' AS ', array_map(fn($s) => static::backquote($s), explode(' AS ', $table)))
             : static::backquote($table);
 
-        [$second, $operator] = $this->prepareValueAndOperator(
-            $second, $operator, true
+        [$value, $operator] = $this->prepareValueAndOperator(
+            $value, $operator, true
         );
 
         $this->joins[] = sprintf(
             '%s JOIN %s %s'
             , strtoupper($type)
             , $table
-            , (clone $this)->on($first, $operator, new Raw(static::backquote($second)))->buildOn()
+            , (clone $this)->on($column, $operator, new Raw(static::backquote($value)))->buildOn()
         );
 
         return $this;
@@ -112,31 +112,31 @@ class MysqlQuery implements QueryInterface
     /**
      * 表连接 - 左
      */
-    public function leftJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static
+    public function leftJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static
     {
-        return $this->join($table, $first, $operator, $second, 'LEFT');
+        return $this->join($table, $column, $operator, $value, 'LEFT');
     }
 
     /**
      * 表连接 - 右
      */
-    public function rightJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static
+    public function rightJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static
     {
-        return $this->join($table, $first, $operator, $second, 'RIGHT');
+        return $this->join($table, $column, $operator, $value, 'RIGHT');
     }
 
     /**
      * 表连接 - 交叉
      */
-    public function crossJoin(string $table, Closure|string $first, string $operator = null, string $second = null) : static
+    public function crossJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static
     {
-        return $this->join($table, $first, $operator, $second, 'CROSS');
+        return $this->join($table, $column, $operator, $value, 'CROSS');
     }
 
     /**
      * 条件 - 表连接
      */
-    public function on(string $column, string $operator = null, mixed $value = null, string $logic = 'AND') : static
+    public function on(string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static
     {
         return $this->where($column, $operator, $value, $logic, 'on');
     }
@@ -144,7 +144,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 条件 - 表连接 - 或
      */
-    public function orOn(string $column, string $operator = null, mixed $value = null) : static
+    public function orOn(string $column, mixed $operator = null, mixed $value = null) : static
     {
         return $this->on($column, $operator, $value, 'OR');
     }
@@ -178,7 +178,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 条件
      */
-    public function where(Closure|string|array $column, string $operator = null, mixed $value = null, string $logic = 'AND', string $location = 'where') : static
+    public function where(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND', string $location = 'where') : static
     {
         if ($column instanceof Closure) {
             // or
@@ -193,8 +193,7 @@ class MysqlQuery implements QueryInterface
 
             $mark = $value;
             if (! $value instanceof Raw) {
-                $mark = $this->markPlaceholder($column);
-                $this->values[$mark] = $value;
+                $mark = $this->markPlaceholder($column, $value);
             }
 
             $this->addBinding($logic, sprintf(
@@ -210,7 +209,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 条件 - 或
      */
-    public function orWhere(Closure|string|array $column, string $operator = null, mixed $value = null) : static
+    public function orWhere(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static
     {
         return $this->where($column, $operator, $value, 'OR');
     }
@@ -226,7 +225,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 准备运算符和值
      */
-    public function prepareValueAndOperator(mixed $value = null, string $operator = null, bool $useDefault = false) : array
+    public function prepareValueAndOperator(mixed $value = null, mixed $operator = null, bool $useDefault = false) : array
     {
         if (true === $useDefault) {
             $value = $operator;
@@ -245,7 +244,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 标记占位符
      */
-    public function markPlaceholder(string $column) : string
+    public function markPlaceholder(string $column, mixed $value = null) : string
     {
         $mark = ':' . preg_replace('/[^\w]/', '_', $column);
 
@@ -254,7 +253,13 @@ class MysqlQuery implements QueryInterface
         }
         $this->marks[$mark]++;
 
-        return $mark . $this->marks[$mark];
+        $mark .= $this->marks[$mark];
+
+        if (2 === func_num_args()) {
+            $this->values[$mark] = $value;
+        }
+
+        return $mark;
     }
 
     /**
@@ -288,7 +293,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 条件 - 分组后
      */
-    public function having(string $column, string $operator = null, mixed $value = null, string $logic = 'AND') : static
+    public function having(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static
     {
         return $this->where($column, $operator, $value, $logic, 'having');
     }
@@ -296,7 +301,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 条件 - 分组后 - 或
      */
-    public function orHaving(string $column, string $operator = null, mixed $value = null) : static
+    public function orHaving(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static
     {
         return $this->having($column, $operator, $value, 'OR');
     }
@@ -437,15 +442,7 @@ class MysqlQuery implements QueryInterface
      */
     public function all(Raw|string ...$columns) : array
     {
-        return $this->field(...$columns)->manager->all(implode(' ', [
-            $this->buildSelect()
-            , $this->buildJoin()
-            , $this->buildWhere()
-            , $this->buildGroup()
-            , $this->buildHaving()
-            , $this->buildOrder()
-            , $this->buildPage()
-        ]), $this->values) ?: [];
+        return $this->field(...$columns)->manager->all($this->buildSelect(), $this->values) ?: [];
     }
 
     /**
@@ -461,15 +458,7 @@ class MysqlQuery implements QueryInterface
      */
     public function first(Raw|string ...$columns) : array
     {
-        return $this->field(...$columns)->manager->first(implode(' ', [
-            $this->buildSelect()
-            , $this->buildJoin()
-            , $this->buildWhere()
-            , $this->buildGroup()
-            , $this->buildHaving()
-            , $this->buildOrder()
-            , $this->buildPage()
-        ]), $this->values) ?: [];
+        return $this->field(...$columns)->manager->first($this->buildSelect(), $this->values) ?: [];
     }
 
     /**
@@ -477,15 +466,7 @@ class MysqlQuery implements QueryInterface
      */
     public function column(Raw|string $column) : array
     {
-        return $this->field(...$columns)->manager->column(implode(' ', [
-            $this->buildSelect()
-            , $this->buildJoin()
-            , $this->buildWhere()
-            , $this->buildGroup()
-            , $this->buildHaving()
-            , $this->buildOrder()
-            , $this->buildPage()
-        ]), $this->values) ?: [];
+        return $this->field(...$columns)->manager->column($this->buildSelect(), $this->values) ?: [];
     }
 
     /**
@@ -493,15 +474,7 @@ class MysqlQuery implements QueryInterface
      */
     public function value(Raw|string $column) : mixed
     {
-        return $this->field($column)->manager->value(implode(' ', [
-            $this->buildSelect()
-            , $this->buildJoin()
-            , $this->buildWhere()
-            , $this->buildGroup()
-            , $this->buildHaving()
-            , $this->buildOrder()
-            , $this->buildPage()
-        ]), $this->values);
+        return $this->field($column)->manager->value($this->buildSelect(), $this->values);
     }
 
     /**
@@ -509,45 +482,15 @@ class MysqlQuery implements QueryInterface
      */
     public function insert(array $data) : bool
     {
-        $isMul = true;
-        if (!is_array(reset($data))) {
-            $isMul = false;
-            $data = [$data];
-        }
-
-        $fields = [];
-        $values = [];
-        foreach ($data as $key => $item) {
-            if (empty($fields)) {
-                $fields = array_keys($item);
-            }
-
-            foreach ($item as $k => $v) {
-                $mark = $this->markPlaceholder($k);
-                $this->values[$mark] = $v;
-
-                $values[$key][] = $mark;
-            }
-
-            $values[$key] = '(' . implode(', ', $values[$key]) . ')';
-        }
-
-        return $this->manager->execute(implode(' ', [
-            // $this->buildInsert()
-            'INSERT INTO'
-            , $this->from
-            , empty($fields) ? '' : '(' . implode(', ', $fields) . ')'
-            , 'VALUES'
-            , empty($values) ? '' : implode(', ', $values)
-        ]), $this->values) > 0;
+        return $this->manager->execute($this->buildInsert($data), $this->values) > 0;
     }
 
     /**
      * 修改数据
      */
-    public function update(array $values) : int
+    public function update(array $data) : int
     {
-        return 0;
+        return $this->manager->execute($this->buildUpdate($data), $this->values);
     }
 
     /**
@@ -555,7 +498,7 @@ class MysqlQuery implements QueryInterface
      */
     public function delete(mixed $id = null) : int
     {
-        return 0;
+        return $this->manager->execute($this->buildDelete(), $this->values);
     }
 
     /**
@@ -563,6 +506,8 @@ class MysqlQuery implements QueryInterface
      */
     public function truncate() : bool
     {
+        $result = $this->manager->execute('TRUNCATE TABLE ' . $this->from, []);
+
         return true;
     }
 
@@ -571,6 +516,26 @@ class MysqlQuery implements QueryInterface
      */
     public function chunk(int $count, Closure $callback) : bool
     {
+        $page = 1;
+
+        do {
+            $results = $this->page($page, $count)->all();
+
+            $countResults = count($results);
+
+            if ($countResults == 0) {
+                break;
+            }
+
+            if ($callback($results, $page) === false) {
+                return false;
+            }
+
+            unset($results);
+
+            $page++;
+        } while ($countResults == $count);
+
         return true;
     }
 
@@ -579,7 +544,16 @@ class MysqlQuery implements QueryInterface
      */
     public function buildSelect() : string
     {
-        return sprintf('SELECT %s FROM %s', $this->buildField(), $this->from);
+        return  'SELECT'
+            . ' ' . $this->buildField()
+            . ' FROM'
+            . ' ' . $this->from
+            . ' ' . $this->buildJoin()
+            . ' ' . $this->buildWhere()
+            . ' ' . $this->buildGroup()
+            . ' ' . $this->buildHaving()
+            . ' ' . $this->buildOrder()
+            . ' ' . $this->buildPage();
     }
 
     /**
@@ -664,6 +638,59 @@ class MysqlQuery implements QueryInterface
     }
 
     /**
+     * 构建插入
+     */
+    public function buildInsert(array $data) : string
+    {
+        if (!is_array(reset($data))) {
+            $data = [$data];
+        }
+
+        $fields = array_keys($data[0]);
+        $values = [];
+        foreach ($data as $key => $item) {
+            foreach ($item as $k => $v) {
+                $values[$key][] = $this->markPlaceholder($k, $v);
+            }
+            $values[$key] = '(' . implode(', ', $values[$key]) . ')';
+        }
+
+        return 'INSERT INTO'
+            . ' ' . $this->from
+            . (empty($fields) ? '' : '(' . implode(', ', $fields) . ')')
+            . ' VALUES'
+            . (empty($values) ? '' : implode(', ', $values));
+    }
+
+    /**
+     * 构建修改
+     */
+    public function buildUpdate(array $data) : string
+    {
+        $setdata = [];
+        foreach ($data as $column => $value) {
+            $mark = $this->markPlaceholder($column, $value);
+            $setdata[] = $column . ' = ' . $mark;
+        }
+
+        return 'UPDATE'
+            . ' ' . $this->from
+            . ' SET '
+            . implode(', ', $setdata)
+            . ' ' . $this->buildWhere();
+    }
+
+    /**
+     * 构建删除
+     */
+    public function buildDelete() : string
+    {
+        return 'DELETE FROM'
+            . ' ' . $this->from
+            . ' ' . $this->buildWhere();
+    }
+
+    /**
      * 反引号
      */
     public static function backquote(string $value, string $symbol = '`', string $delimiter = '.', array $excepts = ['*']) : string
@@ -674,16 +701,21 @@ class MysqlQuery implements QueryInterface
     /**
      * 转成Sql
      */
-    public function toSql() : string
+    public function toSql(string $type = 'select', array $data = []) : string
     {
-        var_dump([
-            $this->from,
-            $this->joins,
-            $this->fields,
-            $this->wheres,
-            $this->values,
-        ]);
-        return '';
+        $sql = '';
+
+        if ($type == 'insert') {
+            $sql = $this->buildInsert($data);
+        } else if ($type == 'update') {
+            $sql = $this->buildUpdate($data);
+        } else if ($type == 'delete') {
+            $sql = $this->buildDelete();
+        } else {
+            $sql = $this->buildSelect();
+        }
+
+        return $sql;
     }
 
     /**
