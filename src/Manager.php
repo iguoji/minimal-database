@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Minimal\Database;
 
 use Exception;
+use Swoole\Coroutine\Channel;
 use Minimal\Database\Contracts\QueryInterface;
 use Minimal\Database\Contracts\ProxyInterface;
 
@@ -13,96 +14,115 @@ use Minimal\Database\Contracts\ProxyInterface;
 class Manager
 {
     /**
-     * 最后的Sql语句
+     * 当前驱动
      */
-    protected string $sql;
+    protected string $driver;
 
     /**
-     * 当前连接名称
+     * 当前代理
      */
-    protected string $store = 'default';
+    protected string $proxy;
 
     /**
-     * 当前连接配置
+     * 当前查询
      */
-    protected array $config = [];
+    protected string $query;
 
     /**
-     * 连接列表
+     * 超时时间
      */
-    protected array $connections = [];
+    protected float $timeout;
+
+    /**
+     * 连接池子
+     */
+    protected array $pool = [];
 
     /**
      * 构造函数
      */
-    public function __construct(protected array $configs)
-    {}
+    public function __construct(protected array $config, protected int $workerNum)
+    {
+        // 设置驱动
+        $this->use($config['default'] ?? 'mysql');
+    }
 
     /**
-     * 配置处理
+     * 切换驱动
      */
-    public function config(string $name) : array
+    public function use(string $name) : static
+    {
+        // 不存在配置
+        if (!isset($this->config[$name])) {
+            throw new Exception('database ' . $name . ' driver config dont\'s exists');
+        }
+
+        // 当前驱动
+        $this->driver = $name;
+        // 当前代理
+        $this->proxy = $config[$this->driver]['proxy'] ?? \Minimal\Database\Proxy\MysqlProxy::class;
+        // 当前查询
+        $this->query = $config[$this->driver]['query'] ?? \Minimal\Database\Query\MysqlQuery::class;
+        // 超时时间
+        $this->timeout = $config[$this->driver]['timeout'] ?? 2;
+
+        // 不存在连接则填充
+        if (!isset($this->pool[$this->driver])) {
+            $this->fill();
+        }
+
+        // 返回结果
+        return $this;
+    }
+
+    /**
+     * 填充连接
+     */
+    public function fill() : static
     {
         // 获取配置
-        $config = $this->configs[$name] ?? [];
-        if (empty($config)) {
-            throw new Exception("database config [$name] not found");
-        }
-        // 默认驱动
-        $driver = $config['driver'] ?? 'mysql';
-        // 默认代理
-        if (!isset($config['proxy']) || is_null($config['proxy'])) {
-            if ($driver == 'mysql') {
-                $config['proxy'] = \Minimal\Database\Proxy\MysqlProxy::class;
-            } else {
-                throw new Exception("database not support [$driver] driver proxy");
+        $config = $this->config[$this->driver];
+        // 获取数量
+        $size = max(1, (int) (($this->config['pool'] ?? swoole_cpu_num() * 10) / $this->workerNum));
+
+        // 循环处理
+        if (!isset($this->pool[$this->driver])) {
+            $this->pool[$this->driver] = new Channel($size);
+            for ($i = 0;$i < $size;$i++) {
+                $proxyInterface = $this->proxy;
+                $this->pool[$this->driver]->push(new $proxyInterface($config), $this->timeout);
             }
         }
-        // 默认查询
-        if (!isset($config['query']) || is_null($config['query'])) {
-            if ($driver == 'mysql') {
-                $config['query'] = \Minimal\Database\Query\MysqlQuery::class;
-            } else {
-                throw new Exception("database not support [$driver] driver query");
-            }
-        }
-        // 返回配置
-        return $config;
+
+        // 返回结果
+        return $this;
     }
 
     /**
      * 获取连接
      */
-    public function connection(string $name = 'default') : ProxyInterface
+    public function connection() : ProxyInterface
     {
-        // 保存名称
-        $this->store = $name;
-        // 存在连接
-        if (isset($this->connections[$name])) {
-            return $this->connections[$name];
+        // 已有连接
+        if (isset(\Swoole\Coroutine::getContext()['database:connection'])) {
+            return \Swoole\Coroutine::getContext()['database:connection'];
         }
-        // 配置处理
-        $config = $this->config($name);
+
+        // 获取连接
+        $conn = $this->pool[$this->driver]->pop($this->timeout);
+        if (false === $conn) {
+            throw new Exception('很抱歉、数据库繁忙！');
+        }
+
+        // 临时保存
+        \Swoole\Coroutine::getContext()['database:connection'] = $conn;
+        // 记得归还
+        \Swoole\Coroutine::defer(function() use($conn){
+            $conn->release();
+            $this->pool[$this->driver]->push($conn, $this->timeout);
+        });
         // 返回连接
-        return $this->connections[$name] = new $config['proxy']($config);
-    }
-
-    /**
-     * 使用主写连接
-     */
-    public function master(int|string $key = null) : static
-    {
-        $this->connection('master', $key);
-        return $this;
-    }
-
-    /**
-     * 使用从读连接
-     */
-    public function slave(int|string $key = null) : static
-    {
-        $this->connection('slave', $key);
-        return $this;
+        return $conn;
     }
 
     /**
@@ -110,10 +130,8 @@ class Manager
      */
     public function table(string $table, string $as = null) : QueryInterface
     {
-        // 获取配置
-        $config = $this->config($this->store);
-        // 返回查询
-        return (new $config['query']($this))->from($table, $as);
+        $queryInterface = $this->query;
+        return (new $queryInterface($this))->from($table, $as);
     }
 
     /**
@@ -129,13 +147,6 @@ class Manager
      */
     public function __call(string $method, array $arguments) : mixed
     {
-        // 获取连接
-        $conn = $this->connection();
-        // 获取结果
-        $result = $conn->$method(...$arguments);
-        // 保存本次Sql
-        $this->sql = $conn->lastSql();
-        // 返回结果
-        return $result;
+        return $this->connection()->$method(...$arguments);
     }
 }

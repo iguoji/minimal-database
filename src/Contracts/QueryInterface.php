@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Minimal\Database\Contracts;
 
-use Closure;
 use Minimal\Database\Raw;
 use Minimal\Database\Manager;
 
@@ -17,10 +16,9 @@ interface QueryInterface
      */
     public function __construct(Manager $manager);
 
-    /**
-     * 原始语句
-     */
-    public function raw(string $sql) : Raw;
+
+
+
 
     /**
      * 主表别名
@@ -28,39 +26,39 @@ interface QueryInterface
     public function from(string $table, string $as = null) : static;
 
     /**
+     * 显示字段
+     */
+    public function field(Raw|string ...$fields) : static;
+
+    /**
      * 表连接
      */
-    public function join(string $table, Closure|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER') : static;
+    public function join(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER JOIN') : static;
 
     /**
      * 表连接 - 左
      */
-    public function leftJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function leftJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 右
      */
-    public function rightJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function rightJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 交叉
      */
-    public function crossJoin(string $table, Closure|string $column, mixed $operator = null, mixed $value = null) : static;
-
-    /**
-     * 字段
-     */
-    public function field(Raw|string ...$columns) : static;
+    public function crossJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 条件
      */
-    public function where(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function where(callable|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 或
      */
-    public function orWhere(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static;
+    public function orWhere(callable|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 分组
@@ -70,12 +68,12 @@ interface QueryInterface
     /**
      * 条件 - 分组后
      */
-    public function having(Closure|string|array $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function having(callable|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 分组后 - 或
      */
-    public function orHaving(Closure|string|array $column, mixed $operator = null, mixed $value = null) : static;
+    public function orHaving(callable|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 排序
@@ -88,69 +86,28 @@ interface QueryInterface
     public function orderByDesc(string $column) : static;
 
     /**
-     * 数据偏移
+     * 分页
      */
-    public function offset(int $value) : static;
+    public function page(int $no, int $size) : static;
 
     /**
-     * 数据限量
+     * 限量偏移
      */
-    public function limit(int $value) : static;
+    public function limit(int $offset, int $count = null) : static;
 
     /**
      * 表联合
      */
-    public function union(QueryInterface|Closure $query, bool $all = false) : static;
+    public function union(QueryInterface|callable $query, bool $all = false) : static;
 
-    /**
-     * 聚合函数
-     */
-    public function aggregate(string $func, array $columns = ['*']) : mixed;
 
-    /**
-     * 聚合 - 统计
-     */
-    public function count(Raw|string $column = '*') : int;
 
-    /**
-     * 聚合 - 最小值
-     */
-    public function min(Raw|string $column) : mixed;
 
-    /**
-     * 聚合 - 最大值
-     */
-    public function max(Raw|string $column) : mixed;
-
-    /**
-     * 聚合 - 总和
-     */
-    public function sum(Raw|string $column) : mixed;
-
-    /**
-     * 聚合 - 平均值
-     */
-    public function avg(Raw|string $column) : mixed;
-
-    /**
-     * 递增
-     */
-    public function inc(Raw|string $column, float|int $step = 1, array $extra = []) : int|float;
-
-    /**
-     * 递减
-     */
-    public function dec(Raw|string $column, float|int $step = 1, array $extra = []) : int|float;
 
     /**
      * 查询数据 - 所有
      */
     public function all(Raw|string ...$columns) : array;
-
-    /**
-     * 查询数据 - 所有 - 别名
-     */
-    public function select(Raw|string ...$columns) : array;
 
     /**
      * 查询数据 - 第一行
@@ -187,10 +144,47 @@ interface QueryInterface
      */
     public function truncate() : bool;
 
+
+
+
+
+    /**
+     * 聚合函数
+     */
+    public function aggregate(string $func, array $columns = ['*']) : mixed;
+
+    /**
+     * 聚合 - 统计
+     */
+    public function count(Raw|string $column = '*') : int;
+
+    /**
+     * 聚合 - 最小值
+     */
+    public function min(Raw|string $column) : mixed;
+
+    /**
+     * 聚合 - 最大值
+     */
+    public function max(Raw|string $column) : mixed;
+
+    /**
+     * 聚合 - 总和
+     */
+    public function sum(Raw|string $column) : mixed;
+
+    /**
+     * 聚合 - 平均值
+     */
+    public function avg(Raw|string $column) : mixed;
+
+
+
+
     /**
      * 分块处理
      */
-    public function chunk(int $count, Closure $callback) : bool;
+    public function chunk(int $count, callable $callback) : bool;
 
     /**
      * 转成Sql
