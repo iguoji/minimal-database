@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Minimal\Database;
 
 use Exception;
+use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Minimal\Database\Contracts\QueryInterface;
 use Minimal\Database\Contracts\ProxyInterface;
@@ -104,8 +105,8 @@ class Manager
     public function connection() : ProxyInterface
     {
         // 已有连接
-        if (isset(\Swoole\Coroutine::getContext()['database:connection'])) {
-            return \Swoole\Coroutine::getContext()['database:connection'];
+        if (isset(Coroutine::getContext()['database:connection'])) {
+            return Coroutine::getContext()['database:connection'];
         }
 
         // 获取连接
@@ -115,9 +116,9 @@ class Manager
         }
 
         // 临时保存
-        \Swoole\Coroutine::getContext()['database:connection'] = $conn;
+        Coroutine::getContext()['database:connection'] = $conn;
         // 记得归还
-        \Swoole\Coroutine::defer(function() use($conn){
+        Coroutine::defer(function() use($conn){
             $conn->release();
             $this->pool[$this->driver]->push($conn, $this->timeout);
         });
