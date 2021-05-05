@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Minimal\Database\Contracts;
 
+use Closure;
 use Minimal\Database\Raw;
 use Minimal\Database\Manager;
 
@@ -33,32 +34,32 @@ interface QueryInterface
     /**
      * 表连接
      */
-    public function join(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER JOIN') : static;
+    public function join(string $table, string $as, Closure|Raw|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER JOIN') : static;
 
     /**
      * 表连接 - 左
      */
-    public function leftJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function leftJoin(string $table, string $as, Closure|Raw|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 右
      */
-    public function rightJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function rightJoin(string $table, string $as, Closure|Raw|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 表连接 - 交叉
      */
-    public function crossJoin(string $table, string $as, Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function crossJoin(string $table, string $as, Closure|Raw|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 条件
      */
-    public function where(callable|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function where(Closure|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 或
      */
-    public function orWhere(callable|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function orWhere(Closure|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 分组
@@ -68,12 +69,12 @@ interface QueryInterface
     /**
      * 条件 - 分组后
      */
-    public function having(callable|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
+    public function having(Closure|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static;
 
     /**
      * 条件 - 分组后 - 或
      */
-    public function orHaving(callable|string $column, mixed $operator = null, mixed $value = null) : static;
+    public function orHaving(Closure|string $column, mixed $operator = null, mixed $value = null) : static;
 
     /**
      * 排序
@@ -98,7 +99,7 @@ interface QueryInterface
     /**
      * 表联合
      */
-    public function union(QueryInterface|callable $query, bool $all = false) : static;
+    public function union(QueryInterface|Closure $query, bool $all = false) : static;
 
 
 
@@ -127,7 +128,7 @@ interface QueryInterface
     /**
      * 插入数据
      */
-    public function insert(array $data) : bool;
+    public function insert(array $data) : int;
 
     /**
      * 修改数据
@@ -184,10 +185,10 @@ interface QueryInterface
     /**
      * 分块处理
      */
-    public function chunk(int $count, callable $callback) : bool;
+    public function chunk(int $count, Closure $callback) : bool;
 
     /**
      * 转成Sql
      */
-    public function toSql() : string;
+    public function toSql(string $type = 'select', array $data = []) : string;
 }

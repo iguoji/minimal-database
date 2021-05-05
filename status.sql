@@ -3,5 +3,7 @@
 SHOW STATUS LIKE 'Threads%';
 
 
+SHOW VARIABLES LIKE '%timeout%';
+
 # 最大连接数
 SHOW VARIABLES LIKE '%max_connections%';  

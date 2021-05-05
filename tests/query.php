@@ -29,6 +29,25 @@ Coroutine\run(function(){
         $query->from('account')->min('id'),
         $query->from('account')->avg('id'),
         $query->from('account')->max('id'),
+
+        $query->from('test')->insert([
+            [
+                'content'   =>  mt_rand(1, 99),
+                'time'      =>  microtime(true),
+            ],
+            [
+                'content'   =>  mt_rand(1, 99),
+                'time'      =>  microtime(true),
+            ],
+        ]),
+
+        $query->from('test')->where('id', 10)->update([
+            'content'   =>  mt_rand(1, 99),
+            'time'      =>  microtime(true),
+        ]),
+
+        $query->from('test')->where('time', '<', microtime(true) - 5)->delete(),
+        $query->from('test')->truncate(),
         // $query->from('account')->where('country')->where('phone', '!=')->all(),
 
 

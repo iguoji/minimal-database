@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Minimal\Database\Query;
 
+use Closure;
 use Minimal\Database\Raw;
 use Minimal\Database\Contracts\QueryInterface;
 
@@ -33,12 +34,12 @@ class MysqlCondition
     /**
      * 条件查询
      */
-    public function where(Raw|callable|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static
+    public function where(Closure|Raw|string $column, mixed $operator = null, mixed $value = null, string $logic = 'AND') : static
     {
         // 按情况处理
-        if (is_callable($column)) {
+        if ($column instanceof Closure) {
             // 回调条件
-            $condition = new static();
+            $condition = new static($this->query);
             $column($condition);
             $this->bindings[] = [$logic, $condition->getBindings()];
         } else {
@@ -66,7 +67,7 @@ class MysqlCondition
     /**
      * 条件查询 - OR
      */
-    public function orWhere(Raw|callable|string $column, mixed $operator = null, mixed $value = null) : static
+    public function orWhere(Closure|Raw|string $column, mixed $operator = null, mixed $value = null) : static
     {
         return $this->where($column, $operator, $value, 'OR');
     }

@@ -2,12 +2,12 @@
     "name": "iguoji/minimal-database",
     "type": "library",
     "description": "php pdo database support",
-    "keywords": ["database", "pdo", "connection pool"],
+    "keywords": ["database", "pdo", "swoole", "connection pool"],
     "homepage": "https://github.com/iguoji/minimal-database",
     "license": "Apache-2.0",
     "require": {
         "php": "^8.0",
-        "ext-swoole": "^4.6"
+        "ext-swoole": ">4.5"
     },
     "autoload": {
         "psr-4": {

@@ -107,8 +107,15 @@ class MysqlBuilder
     /**
      * 反引号
      */
-    public static function backquote(string $value, string $symbol = '`', string $delimiter = '.', array $excepts = ['*']) : string
+    public static function backquote(array|string $value, string $symbol = '`', string $delimiter = '.', array $excepts = ['*']) : array|string
     {
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = static::backquote($item, $symbol, $delimiter, $excepts);
+            }
+            return $value;
+        }
+
         return implode(
             $delimiter,
             array_map(
@@ -175,5 +182,71 @@ class MysqlBuilder
             static::orderBy($bindings['orderBy'] ?? []),
             static::limit($bindings['limit'] ?? []),
         ], fn($s) => trim($s)));
+    }
+
+    /**
+     * 插入语句
+     */
+    public static function insert(array $table, array $fields, array $values) : string
+    {
+        // 字段处理
+        $fields = static::backquote($fields);
+
+        // 数据处理
+        foreach ($values as $key => $mark) {
+            $values[$key] = '(' . implode(', ', $mark) . ')';
+        }
+
+        // 返回语句
+        return implode(' ', [
+            'INSERT INTO',
+            static::as(...$table),
+            '(' . implode(', ', $fields) . ')',
+            'VALUES',
+            implode(', ', $values),
+        ]);
+    }
+
+    /**
+     * 修改语句
+     */
+    public static function update(array $table, array $setdata, array $wheres = []) : string
+    {
+        // 数据处理
+        foreach ($setdata as $key => $item) {
+            $setdata[$key] = static::backquote($item[0]) . ' = ' . $item[1];
+        }
+
+        // 返回语句
+        return implode(' ', [
+            'UPDATE',
+            static::as(...$table),
+            'SET',
+            implode(', ', $setdata),
+            static::where($wheres),
+        ]);
+    }
+
+    /**
+     * 删除语句
+     */
+    public static function delete(array $table, array $wheres = []) : string
+    {
+        return implode(' ', [
+            'DELETE FROM',
+            static::as(...$table),
+            static::where($wheres),
+        ]);
+    }
+
+    /**
+     * 清空语句
+     */
+    public static function truncate(array $table) : string
+    {
+        return implode(' ', [
+            'TRUNCATE TABLE',
+            static::as(...$table),
+        ]);
     }
 }
