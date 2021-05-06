@@ -25,6 +25,20 @@ class MysqlBuilder
             $fields = [ $fields ];
         }
 
+        $blocks = [];
+        foreach ($fields as $key => $value) {
+            if (is_array($value)) {
+                $blocks[] = static::field($value);
+            } else {
+                if (is_int($key)) {
+                    $blocks[] = static::backquote($value);
+                } else {
+                    $blocks[] = static::as($key, $value);
+                }
+            }
+        }
+
+        return implode(', ', $blocks);
         return implode(', ', array_map(fn($s) => static::backquote($s), $fields));
     }
 

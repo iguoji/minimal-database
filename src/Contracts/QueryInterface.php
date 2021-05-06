@@ -108,12 +108,12 @@ interface QueryInterface
     /**
      * 查询数据 - 所有
      */
-    public function all(Raw|string ...$columns) : array;
+    public function all(Raw|array|string ...$columns) : array;
 
     /**
      * 查询数据 - 第一行
      */
-    public function first(Raw|string ...$columns) : array;
+    public function first(Raw|array|string ...$columns) : array;
 
     /**
      * 查询数据 - 第一列

@@ -55,7 +55,7 @@ class MysqlCondition
                 $operator = '=';
             }
             // 占位标记
-            $mark = in_array($operator, ['IS', 'IS NOT']) ? $value : $this->query->mark($column, $value);
+            $mark = in_array($operator, ['IS', 'IS NOT']) || (!is_numeric($value) && false !== strpos($value, '.')) ? $value : $this->query->mark($column, $value);
             // 保存数据
             $this->bindings[] = [$logic, $column, $operator, $mark];
         }

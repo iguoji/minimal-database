@@ -191,7 +191,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 查询数据 - 所有
      */
-    public function all(Raw|string ...$columns) : array
+    public function all(Raw|array|string ...$columns) : array
     {
         // 查询数据
         $result = $this->mergeBinding('field', $columns)->manager->all($this->toSql(), $this->getValues()) ?: [];
@@ -204,7 +204,7 @@ class MysqlQuery implements QueryInterface
     /**
      * 查询数据 - 第一行
      */
-    public function first(Raw|string ...$columns) : array
+    public function first(Raw|array|string ...$columns) : array
     {
         // 查询数据
         $result = $this->mergeBinding('field', $columns)->manager->first($this->toSql(), $this->getValues()) ?: [];
