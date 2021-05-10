@@ -169,7 +169,7 @@ class PDOProxy implements ProxyInterface
         if (1 === $level) {
             // 初次事务
             $bool = $this->__call('rollBack', []);
-        } else {
+        } else if ($level > 1) {
             // 嵌套事务
             $this->__call('exec', ['ROLLBACK TO SAVEPOINT TRANS' . $level]);
         }
