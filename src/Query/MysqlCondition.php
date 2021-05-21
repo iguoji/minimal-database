@@ -54,8 +54,19 @@ class MysqlCondition
                 $value = $operator;
                 $operator = '=';
             }
+
+            // 值可能是表字段
+            $isTableField = false;
+            if (is_string($value) && false !== strpos($value, '.')) {
+                $tables = $this->query->getBinding('table');
+                list($t, $f) = explode('.', $value, 2);
+                if (in_array($t, $tables)) {
+                    $isTableField = true;
+                }
+            }
+
             // 占位标记
-            $mark = in_array($operator, ['IS', 'IS NOT']) || (!is_numeric($value) && false !== strpos($value, '.')) ? $value : $this->query->mark($column, $value);
+            $mark = in_array($operator, ['IS', 'IS NOT']) || $isTableField || $value instanceof Raw ? $value : $this->query->mark($column, $value);
             // 保存数据
             $this->bindings[] = [$logic, $column, $operator, $mark];
         }

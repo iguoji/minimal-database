@@ -45,6 +45,12 @@ class MysqlQuery implements QueryInterface
      */
     public function from(string $table, string $as = null) : static
     {
+        // 保存表名
+        if (!is_null($as)) {
+            $this->addBinding('table', $as);
+        }
+        $this->addBinding('table', $table);
+
         return $this->setBinding(__FUNCTION__, func_get_args());
     }
 
@@ -61,6 +67,12 @@ class MysqlQuery implements QueryInterface
      */
     public function join(string $table, string $as, Closure|Raw|string $column, mixed $operator = null, mixed $value = null, string $type = 'INNER JOIN') : static
     {
+        // 保存表名
+        if (!is_null($as)) {
+            $this->addBinding('table', $as);
+        }
+        $this->addBinding('table', $table);
+
         // 按情况处理
         $condition = new Condition($this);
         $condition->where($column, $operator, $value);
