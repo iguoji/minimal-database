@@ -51,7 +51,7 @@ class Manager
     /**
      * 切换驱动
      */
-    public function use(string $name) : static
+    public function use(string $name, bool $isFill = true) : static
     {
         // 不存在配置
         if (!isset($this->config[$name])) {
@@ -68,7 +68,7 @@ class Manager
         $this->timeout = $config[$this->driver]['timeout'] ?? 2;
 
         // 不存在连接则填充
-        if (!isset($this->pool[$this->driver])) {
+        if (!isset($this->pool[$this->driver]) && $isFill) {
             $this->fill();
         }
 
