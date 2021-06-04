@@ -27,7 +27,9 @@ class MysqlBuilder
 
         $blocks = [];
         foreach ($fields as $key => $value) {
-            if (is_array($value)) {
+            if ($value instanceof Raw) {
+                $blocks[] = (string) $value;
+            } else if (is_array($value)) {
                 $blocks[] = static::field($value);
             } else {
                 if (is_int($key)) {
