@@ -13,35 +13,38 @@ class MysqlBuilder
     /**
      * 字段
      */
-    public static function field(Raw|array|string $fields) : string
+    public static function field(Raw|array|string ...$fields) : string
     {
-        if ($fields instanceof Raw) {
-            return (string) $fields;
-        }
-
-        if (empty($fields)) {
-            $fields = ['*'];
-        } else if (is_string($fields)) {
-            $fields = [ $fields ];
-        }
-
         $blocks = [];
         foreach ($fields as $key => $value) {
-            if ($value instanceof Raw) {
-                $blocks[] = (string) $value;
-            } else if (is_array($value)) {
-                $blocks[] = static::field($value);
-            } else {
-                if (is_int($key)) {
-                    $blocks[] = static::backquote($value);
+            /**
+             * else if (is_array($value)) {
+             *    $blocks[] = static::field($value);
+             * }
+             */
+            if (empty($value)) {
+                continue;
+            }
+            if (is_array($value)) {
+                if (1 === count($value)) {
+                    $k = array_key_first($value);
+                    $v = $value[$k];
                 } else {
-                    $blocks[] = static::as($key, $value);
+                    list($k, $v) = $value;
                 }
+                if (is_int($k)) {
+                    $blocks[] = static::backquote($v);
+                } else {
+                    $blocks[] = static::as($k, $v);
+                }
+            } else if ($value instanceof Raw) {
+                $blocks[] = (string) $value;
+            } else {
+                $blocks[] = static::backquote($value);
             }
         }
 
-        return implode(', ', $blocks);
-        return implode(', ', array_map(fn($s) => static::backquote($s), $fields));
+        return implode(', ', $blocks ?: ['*']);
     }
 
     /**
@@ -187,7 +190,7 @@ class MysqlBuilder
     {
         return implode(' ', array_filter([
             'SELECT',
-            static::field($bindings['field'] ?? ['*']),
+            static::field(...$bindings['field']),
             'FROM',
             static::as(...$bindings['from']),
             static::join($bindings['join'] ?? []),

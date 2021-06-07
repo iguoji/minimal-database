@@ -232,7 +232,7 @@ class MysqlQuery implements QueryInterface
     public function column(Raw|string $column) : array
     {
         // 查询数据
-        $result = $this->setBinding('field', $column)->manager->column($this->toSql(), $this->getValues()) ?: [];
+        $result = $this->setBinding('field', [$column])->manager->column($this->toSql(), $this->getValues()) ?: [];
         // 重置绑定
         $this->reset();
         // 返回结果
@@ -245,7 +245,7 @@ class MysqlQuery implements QueryInterface
     public function value(Raw|string $column) : mixed
     {
         // 查询数据
-        $result = $this->setBinding('field', $column)->manager->value($this->toSql(), $this->getValues());
+        $result = $this->setBinding('field', [$column])->manager->value($this->toSql(), $this->getValues());
         // 重置绑定
         $this->reset();
         // 返回结果
@@ -324,7 +324,7 @@ class MysqlQuery implements QueryInterface
     public function aggregate(string $func, array $columns = ['*']) : mixed
     {
         return $this->value(
-            $this->manager->raw(strtoupper($func) . '(' . Builder::field($columns). ')')
+            $this->manager->raw(strtoupper($func) . '(' . Builder::field(...$columns). ')')
         );
     }
 
