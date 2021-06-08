@@ -506,20 +506,35 @@ class MysqlQuery implements QueryInterface
      */
     public function mark(string $column, mixed $value = null) : string
     {
-        $mark = ':' . preg_replace('/[^\w]/', '_', $column);
+        // 标识名称
+        $prefix = ':' . preg_replace('/[^\w]/', '_', $column);
+        $names = [];
 
-        if (!isset($this->marks[$mark])) {
-            $this->marks[$mark] = 0;
-        }
-        $this->marks[$mark]++;
-
-        $mark .= $this->marks[$mark];
-
-        if (2 === func_num_args()) {
-            $this->values[$mark] = $value;
+        // 本次需创建的标识数量
+        $count = 1;
+        if (is_array($value)) {
+            $count = count($value);
         }
 
-        return $mark;
+        // 循环创建标识
+        for ($i = 0;$i < $count; $i++) {
+            // 不存在则创建
+            if (!isset($this->marks[$prefix])) {
+                $this->marks[$prefix] = 0;
+            }
+            // 标识自增
+            $this->marks[$prefix]++;
+            // 保存标识
+            $names[] = $name = $prefix . $this->marks[$prefix];
+            // 保存参数
+            if (2 === func_num_args()) {
+                $this->values[$name] = is_array($value) ? $value[$i] : $value;
+            }
+        }
+
+        // 返回结果
+        $result = implode(', ', $names);
+        return is_array($value) ? '(' . $result . ')' : $result;
     }
 
     /**

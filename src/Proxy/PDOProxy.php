@@ -370,7 +370,7 @@ class PDOProxy implements ProxyInterface
                     continue;
                 }
                 // 其他错误
-                var_dump($ex->getMessage(), $method, $arguments, $this->inputParameters, $this->handle->errorInfo(), isset($result) ? $result?->errorInfo() : []);
+                var_dump([$ex->getMessage(), $method, $arguments, $this->inputParameters, $this->handle->errorInfo(), isset($result) ? $result?->errorInfo() : []]);
                 echo PHP_EOL;
                 echo PHP_EOL;
                 throw $ex;

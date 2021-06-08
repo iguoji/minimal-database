@@ -54,6 +54,7 @@ class MysqlCondition
                 $value = $operator;
                 $operator = '=';
             }
+            $operator = strtoupper($operator);
 
             // 值可能是表字段
             $isTableField = false;
