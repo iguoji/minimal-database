@@ -173,7 +173,7 @@ class MysqlQuery implements QueryInterface
      */
     public function page(int $no, int $size) : static
     {
-        return $this->limit(($no - 1) * $size, $size);
+        return $this->limit(max($no - 1, 0) * $size, $size);
     }
 
     /**
@@ -190,7 +190,7 @@ class MysqlQuery implements QueryInterface
     public function union(QueryInterface|Closure $query, bool $all = false) : static
     {
         if ($query instanceof Closure) {
-            $query = $query(clone $this);
+            $query = $query(new static($this->manager));
         }
 
         return $this->setBinding(__FUNCTION__, Builder::select($query->getBindings()), $query->getValues());
@@ -541,20 +541,6 @@ class MysqlQuery implements QueryInterface
      * 重置数据
      */
     public function reset() : void
-    {
-        $this->bindings = [];
-        $this->marks = [];
-        $this->values = [];
-    }
-
-
-
-
-
-    /**
-     * 对象克隆
-     */
-    public function __clone()
     {
         $this->bindings = [];
         $this->marks = [];
