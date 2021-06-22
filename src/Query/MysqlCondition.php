@@ -47,7 +47,7 @@ class MysqlCondition
             if ((is_null($operator) || $operator == '=') && is_null($value)) {
                 $operator = 'IS';
                 $value = 'NULL';
-            } else if (($operator == '<>' || $operator == '!=') && (is_null($value) || strtoupper($value) == 'NULL')) {
+            } else if (($operator == '<>' || $operator == '!=') && (is_null($value) || (is_string($value) && strtoupper($value) == 'NULL'))) {
                 $operator = 'IS NOT';
                 $value = 'NULL';
             } else if (!is_null($operator) && is_null($value)) {
