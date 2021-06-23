@@ -61,11 +61,11 @@ class Manager
         // 当前驱动
         $this->driver = $name;
         // 当前代理
-        $this->proxy = $config[$this->driver]['proxy'] ?? \Minimal\Database\Proxy\MysqlProxy::class;
+        $this->proxy = $this->config[$this->driver]['proxy'] ?? \Minimal\Database\Proxy\MysqlProxy::class;
         // 当前查询
-        $this->query = $config[$this->driver]['query'] ?? \Minimal\Database\Query\MysqlQuery::class;
+        $this->query = $this->config[$this->driver]['query'] ?? \Minimal\Database\Query\MysqlQuery::class;
         // 超时时间
-        $this->timeout = $config[$this->driver]['timeout'] ?? 2;
+        $this->timeout = $this->config[$this->driver]['timeout'] ?? 2;
 
         // 不存在连接则填充
         if (!isset($this->pool[$this->driver]) && $isFill) {
@@ -112,7 +112,7 @@ class Manager
         // 获取连接
         $conn = $this->pool[$this->driver]->pop($this->timeout);
         if (false === $conn) {
-            throw new Exception('很抱歉、数据库繁忙！');
+            throw new Exception('很抱歉、数据库繁忙！ -' . $this->timeout);
         }
 
         // 临时保存
